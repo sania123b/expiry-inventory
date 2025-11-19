@@ -1,6 +1,7 @@
+// Signup.js
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { FaUserAlt, FaEnvelope, FaPhone, FaStore, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaUserAlt, FaEnvelope, FaPhone, FaStore, FaMapMarkerAlt, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { RiLockPasswordFill } from 'react-icons/ri';
 import axios from 'axios';
 import { API_BASE_URL } from '../../config/api';
@@ -19,300 +20,242 @@ const Signup = () => {
         storeName: '',
         address: '',
     });
+
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
     const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
+    // Password eye toggle
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
     const handleChange = (e) => {
         const { id, value } = e.target;
-        setFormData({
-            ...formData,
-            [id]: value
-        });
-        
-        // Clear error for this field when user starts typing
+        setFormData({ ...formData, [id]: value });
+
         if (errors[id]) {
-            setErrors({
-                ...errors,
-                [id]: ''
-            });
+            setErrors({ ...errors, [id]: '' });
         }
     };
 
     const validateForm = () => {
         const newErrors = {};
-        
-        // Basic validation
-        if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
-        if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
+
+        if (!formData.firstName.trim()) newErrors.firstName = 'First name required';
+        if (!formData.lastName.trim()) newErrors.lastName = 'Last name required';
+
         if (!formData.email.trim()) {
-            newErrors.email = 'Email is required';
+            newErrors.email = 'Email required';
         } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-            newErrors.email = 'Email is invalid';
+            newErrors.email = 'Invalid email';
         }
-        
-        if (!formData.password.trim()) {
-            newErrors.password = 'Password is required';
+
+        if (!formData.password) {
+            newErrors.password = 'Password required';
         } else if (formData.password.length < 6) {
-            newErrors.password = 'Password must be at least 6 characters';
+            newErrors.password = 'Min 6 characters';
         }
-        
+
         if (formData.password !== formData.confirmPassword) {
             newErrors.confirmPassword = 'Passwords do not match';
         }
 
-        if (!formData.phone.trim()) {
-            newErrors.phone = 'Phone number is required';
-        } else if (!/^\d{10}$/.test(formData.phone.trim())) {
-            newErrors.phone = 'Phone number must be 10 digits';
+        if (!formData.phone) {
+            newErrors.phone = 'Phone required';
+        } else if (!/^\d{10}$/.test(formData.phone)) {
+            newErrors.phone = 'Phone must be 10 digits';
         }
 
-        if (!formData.address.trim()) {
-            newErrors.address = 'Address is required';
+        if (!formData.address.trim()) newErrors.address = 'Address required';
+
+        if (userType === 'shopkeeper' && !formData.storeName.trim()) {
+            newErrors.storeName = 'Store name required';
         }
-        
-        // Additional validation for shopkeeper
-        if (userType === 'shopkeeper') {
-            if (!formData.storeName.trim()) newErrors.storeName = 'Store name is required';
-        }
-        
+
         return newErrors;
     };
 
     const handleSignup = async (e) => {
         e.preventDefault();
-        
+
         const validationErrors = validateForm();
         if (Object.keys(validationErrors).length > 0) {
             setErrors(validationErrors);
             return;
         }
-        
+
         setLoading(true);
-        
+
         try {
-            // Prepare user data based on backend User model
             const userData = {
                 name: `${formData.firstName} ${formData.lastName}`.trim(),
-                email: formData.email.trim().toLowerCase(),
+                email: formData.email.toLowerCase(),
                 password: formData.password,
                 role: userType,
-                phone: formData.phone.trim(),
-                address: formData.address.trim()
+                phone: formData.phone,
+                address: formData.address
             };
-            
-            const registerEndpoint = `${API_BASE_URL}/users/register`;
-            console.log('Sending registration request to:', registerEndpoint);
-            console.log('Registration data:', userData);
-            
-            const response = await axios.post(registerEndpoint, userData);
-            
-            console.log('Registration successful:', response.data);
 
-            // Store token and user info
-            if (response.data && response.data.token) {
+            if (userType === 'shopkeeper') userData.storeName = formData.storeName;
+
+            const response = await axios.post(`${API_BASE_URL}/user/register`, userData);
+
+            if (response.data.token) {
                 localStorage.setItem('token', response.data.token);
                 localStorage.setItem('userType', response.data.user.role);
                 localStorage.setItem('userInfo', JSON.stringify(response.data.user));
             }
-            
+
             setShowSuccessMessage(true);
-            
-            // Redirect after a delay
+
             setTimeout(() => {
                 navigate('/login');
-            }, 2000);
-            
+            }, 1800);
+
         } catch (error) {
-            console.error('Registration error:', error);
-            let errorMessage = 'Registration failed. Please try again.';
-            
-            if (error.response) {
-                // The request was made and the server responded with a status code
-                // that falls out of the range of 2xx
-                errorMessage = error.response.data.message || errorMessage;
-                console.error('Error response:', error.response.data);
-            } else if (error.request) {
-                // The request was made but no response was received
-                errorMessage = 'No response from server. Please try again.';
-                console.error('Error request:', error.request);
-            } else {
-                // Something happened in setting up the request that triggered an Error
-                errorMessage = error.message;
-                console.error('Error message:', error.message);
-            }
-            
-            setErrors({ general: errorMessage });
-        } finally {
-            setLoading(false);
+            const msg =
+                error.response?.data?.message ||
+                'Registration failed. Try again.';
+            setErrors({ general: msg });
         }
+
+        setLoading(false);
     };
 
     return (
         <div className="signup">
             {showSuccessMessage && (
-                <div className="success-message">
-                    Registration successful! Redirecting to login...
-                </div>
+                <div className="success-message">Registration successful! Redirecting...</div>
             )}
-            
+
             <form onSubmit={handleSignup}>
                 <div className="container">
                     <h1>Create an Account</h1>
-                    
+
                     <div className="user-type-selector">
                         <label>
-                            <input 
-                                type="radio" 
-                                value="customer" 
+                            <input
+                                type="radio"
+                                value="customer"
                                 checked={userType === 'customer'}
-                                onChange={() => setUserType('customer')} 
+                                onChange={() => setUserType('customer')}
                             />
                             Customer
                         </label>
+
                         <label>
-                            <input 
-                                type="radio" 
-                                value="shopkeeper" 
+                            <input
+                                type="radio"
+                                value="shopkeeper"
                                 checked={userType === 'shopkeeper'}
-                                onChange={() => setUserType('shopkeeper')} 
+                                onChange={() => setUserType('shopkeeper')}
                             />
                             Shopkeeper
                         </label>
                     </div>
-                    
+
                     {errors.general && <div className="error-message">{errors.general}</div>}
-                    
+
                     <div className="form-row">
-                        <div className='inputbox'>
-                            <label htmlFor="firstName">First Name:</label>
-                            <input 
-                                type="text" 
-                                id="firstName" 
-                                placeholder="First Name" 
-                                value={formData.firstName}
-                                onChange={handleChange}
-                                required 
-                            />
-                            <FaUserAlt className='icon' />
+                        <div className="inputbox">
+                            <label>First Name</label>
+                            <input id="firstName" value={formData.firstName} onChange={handleChange} />
+                            <FaUserAlt className="icon" />
                             {errors.firstName && <span className="error">{errors.firstName}</span>}
                         </div>
-                        
-                        <div className='inputbox'>
-                            <label htmlFor="lastName">Last Name:</label>
-                            <input 
-                                type="text" 
-                                id="lastName" 
-                                placeholder="Last Name" 
-                                value={formData.lastName}
-                                onChange={handleChange}
-                                required 
-                            />
-                            <FaUserAlt className='icon' />
+
+                        <div className="inputbox">
+                            <label>Last Name</label>
+                            <input id="lastName" value={formData.lastName} onChange={handleChange} />
+                            <FaUserAlt className="icon" />
                             {errors.lastName && <span className="error">{errors.lastName}</span>}
                         </div>
                     </div>
-                    
+
                     <div className="form-row">
-                        <div className='inputbox'>
-                            <label htmlFor="email">Email:</label>
-                            <input 
-                                type="email" 
-                                id="email" 
-                                placeholder="Email" 
-                                value={formData.email}
-                                onChange={handleChange}
-                                required 
-                            />
-                            <FaEnvelope className='icon' />
+                        <div className="inputbox">
+                            <label>Email</label>
+                            <input id="email" value={formData.email} onChange={handleChange} />
+                            <FaEnvelope className="icon" />
                             {errors.email && <span className="error">{errors.email}</span>}
                         </div>
-                        
-                        <div className='inputbox'>
-                            <label htmlFor="phone">Phone:</label>
-                            <input 
-                                type="tel" 
-                                id="phone" 
-                                placeholder="Phone Number (10 digits)" 
-                                value={formData.phone}
-                                onChange={handleChange}
-                                pattern="[0-9]{10}"
-                                required
-                            />
-                            <FaPhone className='icon' />
+
+                        <div className="inputbox">
+                            <label>Phone</label>
+                            <input id="phone" value={formData.phone} onChange={handleChange} />
+                            <FaPhone className="icon" />
                             {errors.phone && <span className="error">{errors.phone}</span>}
                         </div>
                     </div>
-                    
+
                     <div className="form-row">
-                        <div className='inputbox'>
-                            <label htmlFor="password">Password:</label>
-                            <input 
-                                type="password" 
-                                id="password" 
-                                placeholder="Password (min 6 characters)" 
-                                value={formData.password}
-                                onChange={handleChange}
-                                minLength="6"
-                                required 
-                            />
-                            <RiLockPasswordFill className='icon' />
+                        <div className="inputbox">
+                            <label>Password</label>
+                            <div className="password-field">
+                                <input
+                                    id="password"
+                                    type={showPassword ? "text" : "password"}
+                                    value={formData.password}
+                                    onChange={handleChange}
+                                />
+                                <button
+                                    type="button"
+                                    className="password-toggle"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                >
+                                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                                </button>
+                            </div>
+                            <RiLockPasswordFill className="icon" />
                             {errors.password && <span className="error">{errors.password}</span>}
                         </div>
-                        
-                        <div className='inputbox'>
-                            <label htmlFor="confirmPassword">Confirm Password:</label>
-                            <input 
-                                type="password" 
-                                id="confirmPassword" 
-                                placeholder="Confirm Password" 
-                                value={formData.confirmPassword}
-                                onChange={handleChange}
-                                required 
-                            />
-                            <RiLockPasswordFill className='icon' />
+
+                        <div className="inputbox">
+                            <label>Confirm Password</label>
+                            <div className="password-field">
+                                <input
+                                    id="confirmPassword"
+                                    type={showConfirmPassword ? "text" : "password"}
+                                    value={formData.confirmPassword}
+                                    onChange={handleChange}
+                                />
+                                <button
+                                    type="button"
+                                    className="password-toggle"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                >
+                                    {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                                </button>
+                            </div>
+                            <RiLockPasswordFill className="icon" />
                             {errors.confirmPassword && <span className="error">{errors.confirmPassword}</span>}
                         </div>
                     </div>
-                    
-                    <div className='inputbox'>
-                        <label htmlFor="address">Address:</label>
-                        <input 
-                            type="text" 
-                            id="address" 
-                            placeholder="Full Address" 
-                            value={formData.address}
-                            onChange={handleChange}
-                            required
-                        />
-                        <FaMapMarkerAlt className='icon' />
+
+                    <div className="inputbox">
+                        <label>Address</label>
+                        <input id="address" value={formData.address} onChange={handleChange} />
+                        <FaMapMarkerAlt className="icon" />
                         {errors.address && <span className="error">{errors.address}</span>}
                     </div>
-                    
+
                     {userType === 'shopkeeper' && (
-                        <div className='inputbox'>
-                            <label htmlFor="storeName">Store Name:</label>
-                            <input 
-                                type="text" 
-                                id="storeName" 
-                                placeholder="Store Name" 
-                                value={formData.storeName}
-                                onChange={handleChange}
-                                required
-                            />
-                            <FaStore className='icon' />
+                        <div className="inputbox">
+                            <label>Store Name</label>
+                            <input id="storeName" value={formData.storeName} onChange={handleChange} />
+                            <FaStore className="icon" />
                             {errors.storeName && <span className="error">{errors.storeName}</span>}
                         </div>
                     )}
-                    
+
                     <div className="button">
                         <button type="submit" disabled={loading}>
                             {loading ? 'Signing Up...' : 'Sign Up'}
                         </button>
                     </div>
-                    
+
                     <div className="login-link">
-                        <p>Already have an account? <Link to="/login">Login</Link></p>
+                        Already have an account? <Link to="/login">Login</Link>
                     </div>
                 </div>
             </form>

@@ -62,7 +62,7 @@ const Signup = () => {
             console.log('Registration endpoint:', API_ENDPOINTS.users.register);
             console.log('Sending registration request:', registrationData);
             
-            const response = await axiosInstance.post('/users/register', registrationData);
+            const response = await axiosInstance.post('/user/register', registrationData);
             console.log('Registration response:', response.data);
 
             // Store token and user data

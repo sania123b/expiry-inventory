@@ -18,15 +18,21 @@ router.post('/register', async (req, res) => {
             return res.status(400).json({ message: 'All fields are required' });
         }
 
+        // Split name into firstName and lastName
+        const nameParts = name.trim().split(' ');
+        const firstName = nameParts[0];
+        const lastName = nameParts.slice(1).join(' ') || '';
+
         // Check if user already exists
         let user = await User.findOne({ email });
         if (user) {
             return res.status(400).json({ message: 'User already exists' });
         }
 
-        // Create new user - password will be hashed by the pre-save hook
+        // Create new user
         user = new User({
-            name,
+            firstName,
+            lastName,
             email,
             password,
             role: role || 'customer',
@@ -47,7 +53,8 @@ router.post('/register', async (req, res) => {
             token,
             user: {
                 id: user._id,
-                name: user.name,
+                firstName: user.firstName,
+                lastName: user.lastName,
                 email: user.email,
                 role: user.role,
                 phone: user.phone,
@@ -59,6 +66,7 @@ router.post('/register', async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 });
+
 
 // Login user
 router.post('/login', async (req, res) => {
@@ -78,20 +86,22 @@ router.post('/login', async (req, res) => {
         const token = jwt.sign(
             { userId: user._id, role: user.role },
             process.env.JWT_SECRET,
-            { expiresIn: '24h' }
+            { expiresIn: '100d' }
         );
 
         res.json({
             token,
             user: {
                 id: user._id,
-                name: user.name,
+                firstName: user.firstName,
+                lastName: user.lastName,
                 email: user.email,
                 role: user.role,
                 phone: user.phone,
                 address: user.address
             }
         });
+
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ message: 'Server error' });

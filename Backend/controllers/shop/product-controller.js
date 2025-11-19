@@ -32,51 +32,39 @@ const upload = multer({
 }).single('productImage');
 
 // Simplified version without multer for debugging
-const addProduct = async(req, res) => {
+const addProduct = async (req, res) => {
     try {
         console.log("Request body received:", req.body);
-        
-        // Check if request body exists
+
         if (!req.body) {
-            return res.status(400).json({
-                success: false,
-                message: "Request body is missing"
-            });
+            return res.status(400).json({ success: false, message: "Request body is missing" });
         }
-        
-        // Extract values from request body with fallback values
-        const name = req.body.name;
-        const description = req.body.description;
-        const price = parseFloat(req.body.price);
-        const quantity = parseInt(req.body.quantity);
-        const category = req.body.category;
-        const sku = req.body.sku;
-        const barcode = req.body.barcode;
-        const discount = parseInt(req.body.discount) || 0;
-        const expiryDate = req.body.expiryDate;
-        const manufactureDate = req.body.manufactureDate;
-        const imageUrl = req.body.imageUrl || 'https://placehold.co/600x400?text=No+Image';
-        
+
+        const {
+            name,
+            description,
+            price,
+            quantity,
+            category,
+            sku,
+            barcode,
+            discount = 0,
+            expiryDate,
+            manufactureDate,
+            imageUrl = 'https://placehold.co/600x400?text=No+Image'
+        } = req.body;
+
         // Validate required fields
-        if (!name || !description || isNaN(price) || isNaN(quantity) || !category || !sku) {
-            return res.status(400).json({
-                success: false,
-                message: "Missing required fields"
-            });
+        if (!name || !description || !price || !quantity || !category || !sku) {
+            return res.status(400).json({ success: false, message: "Missing required fields" });
         }
-        
-        // Check if barcode already exists
+
+        // Check for duplicate barcode
         if (barcode) {
-            const existingProductWithBarcode = await Product.findOne({ barcode });
-            if (existingProductWithBarcode) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Barcode already exists for another product"
-                });
-            }
+            const existing = await Product.findOne({ barcode });
+            if (existing) return res.status(400).json({ success: false, message: "Barcode already exists" });
         }
-        
-        // Create product with all fields from frontend
+
         const product = new Product({
             name,
             description,
@@ -84,96 +72,59 @@ const addProduct = async(req, res) => {
             quantity,
             category,
             sku,
-            barcode: barcode || undefined, // Only set if barcode is provided
+            barcode: barcode || undefined,
             discount,
             expiryDate,
             manufactureDate,
             imageUrl,
-            serialNumber: sku // Use sku as serialNumber if needed
+            serialNumber: sku,
+            shopkeeperId:  "123456789012345678901234"
         });
-        
+
         await product.save();
-        
-        res.status(201).json({
-            success: true,
-            product: product,
-            message: "Product added successfully"
-        });
+
+        res.status(201).json({ success: true, product, message: "Product added successfully" });
+
     } catch (err) {
         console.log("Error adding product:", err);
-        res.status(500).json({
-            success: false,
-            message: err.message || "Internal Server Error"
-        });
+        res.status(500).json({ success: false, message: err.message || "Internal Server Error" });
     }
 };
 
 // Original version with multer
-const addProductWithUpload = async(req, res) => {
-    // Handle file upload
-    upload(req, res, async function(err) {
-        if (err instanceof multer.MulterError) {
-            return res.status(400).json({
-                success: false,
-                message: `Image upload error: ${err.message}`
-            });
-        } else if (err) {
-            return res.status(400).json({
-                success: false,
-                message: err.message
-            });
+const addProductWithUpload = async (req, res) => {
+    upload(req, res, async function (err) {
+        if (err) {
+            return res.status(400).json({ success: false, message: err.message });
         }
-        
+
         try {
             console.log("Request body received:", req.body);
-            
-            // Check if request body exists
-            if (!req.body) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Request body is missing"
-                });
+
+            const {
+                name,
+                description,
+                price,
+                quantity,
+                category,
+                sku,
+                barcode,
+                discount = 0,
+                expiryDate,
+                manufactureDate
+            } = req.body;
+
+            if (!name || !description || !price || !quantity || !category || !sku) {
+                return res.status(400).json({ success: false, message: "Missing required fields" });
             }
-            
-            // Extract values from request body with fallback values
-            const name = req.body.name;
-            const description = req.body.description;
-            const price = parseFloat(req.body.price);
-            const quantity = parseInt(req.body.quantity);
-            const category = req.body.category;
-            const sku = req.body.sku;
-            const barcode = req.body.barcode;
-            const discount = parseInt(req.body.discount) || 0;
-            const expiryDate = req.body.expiryDate;
-            const manufactureDate = req.body.manufactureDate;
-            const imageUrl = req.body.imageUrl;
-            
-            // Validate required fields
-            if (!name || !description || isNaN(price) || isNaN(quantity) || !category || !sku) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Missing required fields"
-                });
-            }
-            
-            // Check if barcode already exists
+
             if (barcode) {
-                const existingProductWithBarcode = await Product.findOne({ barcode });
-                if (existingProductWithBarcode) {
-                    return res.status(400).json({
-                        success: false,
-                        message: `E11000 duplicate key error collection: erp_db.products index: barcode_1 dup key: { barcode: "${barcode}" }`
-                    });
-                }
+                const existing = await Product.findOne({ barcode });
+                if (existing) return res.status(400).json({ success: false, message: "Barcode already exists" });
             }
-            
-            // Handle image path from file upload
-            let productImageUrl = imageUrl;
-            if (req.file) {
-                productImageUrl = `/uploads/products/${req.file.filename}`;
-            }
-            
-            // Create product with all fields from frontend
+
+            let productImageUrl = req.file ? `/uploads/products/${req.file.filename}` : 'https://placehold.co/600x400?text=No+Image';
+
             const product = new Product({
                 name,
                 description,
@@ -186,25 +137,21 @@ const addProductWithUpload = async(req, res) => {
                 expiryDate,
                 manufactureDate,
                 imageUrl: productImageUrl,
-                serialNumber: sku // Use sku as serialNumber if needed
+                serialNumber: sku,
+                shopkeeperId: req.user._id // <-- FIXED
             });
-            
+
             await product.save();
-            
-            res.status(201).json({
-                success: true,
-                product: product,
-                message: "Product added successfully"
-            });
+
+            res.status(201).json({ success: true, product, message: "Product added successfully" });
+
         } catch (err) {
             console.log("Error adding product:", err);
-            res.status(500).json({
-                success: false,
-                message: err.message || "Internal Server Error"
-            });
+            res.status(500).json({ success: false, message: err.message || "Internal Server Error" });
         }
     });
 };
+
 
 const getProducts=async(req,res)=>{
     try {

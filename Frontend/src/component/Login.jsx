@@ -53,7 +53,7 @@ const Login = ({ onLogin }) => {
             localStorage.removeItem('userInfo');
             
             // Use axios directly instead of axiosInstance to avoid token interceptors during login
-            const response = await axios.post(`${API_BASE_URL}/users/login`, formData);
+            const response = await axios.post(`${API_BASE_URL}/user/login`, formData);
             console.log('Login response:', response.data);
 
             const { token, user } = response.data;

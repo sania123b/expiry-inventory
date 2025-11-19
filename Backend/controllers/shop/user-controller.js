@@ -1,6 +1,5 @@
 const User = require('../../models/User');
 const bcrypt = require('bcryptjs');
-const { address } = require('framer-motion/client');
 const jwt = require('jsonwebtoken');
 
 // Generate JWT token
